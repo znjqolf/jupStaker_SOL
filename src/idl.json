@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "name": "locked_voter",
   "docs": [
     "Locked voter program."
@@ -510,6 +510,172 @@
           }
         }
       ]
+    },
+    {
+      "name": "openPartialUnstaking",
+      "docs": [
+        "Open partial unstaking"
+      ],
+      "accounts": [
+        {
+          "name": "locker",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "[Locker]."
+          ]
+        },
+        {
+          "name": "escrow",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "[Escrow]."
+          ]
+        },
+        {
+          "name": "partialUnstake",
+          "isMut": true,
+          "isSigner": true,
+          "docs": [
+            "[Escrow]."
+          ]
+        },
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "System program."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "memo",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "mergePartialUnstaking",
+      "docs": [
+        "Merge partial unstaking"
+      ],
+      "accounts": [
+        {
+          "name": "locker",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "[Locker]."
+          ]
+        },
+        {
+          "name": "escrow",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "[Escrow]."
+          ]
+        },
+        {
+          "name": "partialUnstake",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "The [PartialUnstaking] that is being merged."
+          ]
+        },
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "withdrawPartialUnstaking",
+      "docs": [
+        "Withdraw partial unstaking"
+      ],
+      "accounts": [
+        {
+          "name": "locker",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "The [Locker] being exited from."
+          ]
+        },
+        {
+          "name": "escrow",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "The [Escrow] that is being closed."
+          ]
+        },
+        {
+          "name": "partialUnstake",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "The [PartialUnstaking] that is being withdraw."
+          ]
+        },
+        {
+          "name": "owner",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Authority of the [Escrow]."
+          ]
+        },
+        {
+          "name": "escrowTokens",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Tokens locked up in the [Escrow]."
+          ]
+        },
+        {
+          "name": "destinationTokens",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Destination for the tokens to unlock."
+          ]
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true,
+          "docs": [
+            "The payer to receive the rent refund."
+          ]
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Token program."
+          ]
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -660,6 +826,20 @@
             "type": "bool"
           },
           {
+            "name": "partialUnstakingAmount",
+            "docs": [
+              "total amount of partial unstaking amount"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "padding",
+            "docs": [
+              "padding for further use"
+            ],
+            "type": "u64"
+          },
+          {
             "name": "buffers",
             "docs": [
               "buffer for further use"
@@ -667,9 +847,60 @@
             "type": {
               "array": [
                 "u128",
-                10
+                9
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "partialUnstaking",
+      "docs": [
+        "Account to store infor for partial unstaking"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "escrow",
+            "docs": [
+              "The [Escrow] pubkey."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "amount",
+            "docs": [
+              "Amount of this partial unstaking"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "expiration",
+            "docs": [
+              "Timestamp when owner can withdraw the partial unstaking amount"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "buffers",
+            "docs": [
+              "buffer for further use"
+            ],
+            "type": {
+              "array": [
+                "u128",
+                6
+              ]
+            }
+          },
+          {
+            "name": "memo",
+            "docs": [
+              "Memo"
+            ],
+            "type": "string"
           }
         ]
       }
@@ -794,6 +1025,26 @@
       ]
     },
     {
+      "name": "MergePartialUnstakingEvent",
+      "fields": [
+        {
+          "name": "partialUnstake",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "escrow",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        }
+      ]
+    },
+    {
       "name": "NewEscrowEvent",
       "fields": [
         {
@@ -846,6 +1097,31 @@
       ]
     },
     {
+      "name": "OpenPartialStakingEvent",
+      "fields": [
+        {
+          "name": "partialUnstake",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "escrow",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "expiration",
+          "type": "i64",
+          "index": false
+        }
+      ]
+    },
+    {
       "name": "LockerSetParamsEvent",
       "fields": [
         {
@@ -885,6 +1161,41 @@
         {
           "name": "newDelegate",
           "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "WithdrawPartialUnstakingEvent",
+      "fields": [
+        {
+          "name": "escrowOwner",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "locker",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "partialUnstaking",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "timestamp",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "lockerSupply",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "releasedAmount",
+          "type": "u64",
           "index": false
         }
       ]
@@ -965,6 +1276,36 @@
       "code": 6008,
       "name": "AmountIsZero",
       "msg": "Amount is zero"
+    },
+    {
+      "code": 6009,
+      "name": "MaxLockIsNotSet",
+      "msg": "Maxlock is not set"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidAmountForPartialUnstaking",
+      "msg": "Invalid amount for partial unstaking"
+    },
+    {
+      "code": 6011,
+      "name": "EscrowHasBeenEnded",
+      "msg": "Escrow has been ended"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidUnstakingLockDuration",
+      "msg": "Invalid unstaking lock duration"
+    },
+    {
+      "code": 6013,
+      "name": "PartialUnstakingAmountIsNotZero",
+      "msg": "Partial unstaking amount is not zero"
+    },
+    {
+      "code": 6014,
+      "name": "PartialUnstakingIsNotEnded",
+      "msg": "Partial unstaking has not ended"
     }
   ]
 }

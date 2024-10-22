@@ -43,7 +43,7 @@ const locked_voter = new PublicKey(
 //投票链接 (Voting link) https://vote.jup.ag/proposal/5N9UbMGzga3SL8Rq7qDZCGfZX3FRDUhgqkSY2ksQjg8r
 //再改下 投票id 就行了 (Just change the voting id again)
 const proposalId = new PublicKey(
-  "5N9UbMGzga3SL8Rq7qDZCGfZX3FRDUhgqkSY2ksQjg8r"
+  "CioyJmzFuRbN3Pda1LhvNxsEDoA4gQfTJ56F2hgWib5C"
 );
 const voteId = 2;
 const jupAddress = new PublicKey("JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN");
@@ -153,8 +153,12 @@ class Worker {
       let success;
       if (TYPE === 1) {
         success = await this.stake(stakeAmount);
-      } else {
+      } else if(TYPE === 2){
         success = await this.vote();
+      } else if(TYPE === 3){
+        success = await this.unStake();
+      }else{
+        success = await this.withdraw();
       }
       if (!success) {
         logger.error(
@@ -284,6 +288,110 @@ class Worker {
     }
   }
 
+  async withdraw() {
+    try {
+      let {
+        wallet,
+        provider: { connection },
+      } = this;
+
+      let [c] = await this.getOrCreateEscrow(),
+          [d, p] = await this.getOrCreateATAInstruction(
+              jupAddress,
+              c,
+              connection,
+              !0,
+              wallet.publicKey
+          ),
+          [y, h] = await this.getOrCreateATAInstruction(
+              jupAddress,
+              wallet.publicKey,
+              connection,
+              !0,
+              wallet.publicKey
+          ),
+          g = [p, h].filter(Boolean)
+
+      let signature = await this.program.methods.withdraw().accounts({
+            destinationTokens: y,
+            escrow: c,
+            escrowOwner: wallet.publicKey,
+            escrowTokens: d,
+            locker: locker,
+            payer: wallet.publicKey,
+            tokenProgram: TOKEN_PROGRAM_ID
+          }).preInstructions([
+        ComputeBudgetProgram.setComputeUnitPrice({
+          microLamports: UNIT_PRICE,
+        }),
+        ComputeBudgetProgram.setComputeUnitLimit({ units: 800000 }),
+          ...g
+      ]).rpc()
+
+      if (signature) {
+        logger.success(
+            `第${
+                this.index
+            } 子进程 (Child process) ${this.wallet.publicKey.toBase58()} 提取JUP成功 (Successful withdraw JUP) ${signature}`
+        );
+        return true;
+      } else {
+        logger.error(
+            `第${
+                this.index
+            } 子进程 (Child process) ${this.wallet.publicKey.toBase58()} 提取JUP失败 (withdraw JUP failed)`
+        );
+        return false;
+      }
+    } catch (error) {
+      logger.error(`交易 (transaction) Error: ${error.message}`);
+      // 如果(if) program error: 0x1 在报错中 则返回真(Returns true if an error is reported.) 因为这样该账号无论如何都会失败 (Because this account will fail no matter what.)
+      // 错误情况 1: custom program error: 0x1 jup余额不足 特别是因为 sol 交易发送过但是超时未确认 重试的时候遇到该情况 (Error 1, insufficient jup balance, especially because the sol transaction has been sent but has not been confirmed due to timeout when retrying)
+      // 错误情况 2: 这个错误的原因是 账户 sol 不足，请务必保证资金够用 建议 0.01 sol (The reason for this error is insufficient sol in the account. Please make sure that the funds are sufficient. It is recommended to use 0.01 sol.)
+      if (error.message.includes("program error: 0x1")) {
+        return true;
+      }
+      return false;
+    }
+  }
+
+
+  async unStake(stakeAmount) {
+    try {
+      let {
+        wallet,
+        provider: { connection },
+      } = this;
+
+      let signature = await this.toggleMaxDuration(false);
+
+      if (signature) {
+        logger.success(
+            `第${
+                this.index
+            } 子进程 (Child process) ${this.wallet.publicKey.toBase58()} 解除质押成功 (Successful unstake) ${signature}`
+        );
+        return true;
+      } else {
+        logger.error(
+            `第${
+                this.index
+            } 子进程 (Child process) ${this.wallet.publicKey.toBase58()} 解除质押失败 (unstake failed)`
+        );
+        return false;
+      }
+    } catch (error) {
+      logger.error(`交易 (transaction) Error: ${error.message}`);
+      // 如果(if) program error: 0x1 在报错中 则返回真(Returns true if an error is reported.) 因为这样该账号无论如何都会失败 (Because this account will fail no matter what.)
+      // 错误情况 1: custom program error: 0x1 jup余额不足 特别是因为 sol 交易发送过但是超时未确认 重试的时候遇到该情况 (Error 1, insufficient jup balance, especially because the sol transaction has been sent but has not been confirmed due to timeout when retrying)
+      // 错误情况 2: 这个错误的原因是 账户 sol 不足，请务必保证资金够用 建议 0.01 sol (The reason for this error is insufficient sol in the account. Please make sure that the funds are sufficient. It is recommended to use 0.01 sol.)
+      if (error.message.includes("program error: 0x1")) {
+        return true;
+      }
+      return false;
+    }
+  }
+
   async vote() {
     try {
       let [a, r] = await this.getOrCreateVote(proposalId);
@@ -377,7 +485,7 @@ class Worker {
     }
   }
 
-  async toggleMaxDuration(e, t, r) {
+  async toggleMaxDuration(e, t=[], r=[]) {
     let [a] = await this.getOrCreateEscrow();
     t.unshift(
       ComputeBudgetProgram.setComputeUnitPrice({
@@ -397,6 +505,8 @@ class Worker {
       .postInstructions(r || [])
       .rpc();
   }
+
+
 
   async init() {
     try {
